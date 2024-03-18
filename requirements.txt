@@ -1,4 +1,5 @@
 line-bot-sdk
 fastapi
 urllib3
+OpenSSL 1.1.1
 uvicorn[standard]

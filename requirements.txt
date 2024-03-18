@@ -1,3 +1,4 @@
 line-bot-sdk
 fastapi
+urllib3
 uvicorn[standard]

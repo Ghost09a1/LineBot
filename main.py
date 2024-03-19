@@ -1,24 +1,27 @@
 import os
 import sys
+from argparse import ArgumentParser
 
-from fastapi import Request, FastAPI, HTTPException
-
-from linebot.v3.webhook import WebhookParser
-from linebot.v3.messaging import (
-    AsyncApiClient,
-    AsyncMessagingApi,
-    Configuration,
-    ReplyMessageRequest,
-    TextMessage
+from flask import Flask, request, abort
+from linebot.v3 import (
+     WebhookHandler
 )
 from linebot.v3.exceptions import (
     InvalidSignatureError
 )
 from linebot.v3.webhooks import (
     MessageEvent,
-    TextMessageContent
+    TextMessageContent,
+)
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage
 )
 
+app = Flask(__name__)
 
 # get channel_secret and channel_access_token from your environment variable
 channel_secret = os.getenv('2bfb32b405764eb9c73ee8e3ccae43b2', None)
@@ -30,40 +33,49 @@ if channel_access_token is None:
     print('Specify LINE_CHANNEL_ACCESS_TOKEN as environment variable.')
     sys.exit(1)
 
+handler = WebhookHandler(channel_secret)
+
 configuration = Configuration(
     access_token=channel_access_token
 )
 
-app = FastAPI()
-async_api_client = AsyncApiClient(configuration)
-line_bot_api = AsyncMessagingApi(async_api_client)
-parser = WebhookParser(channel_secret)
 
-
-@app.post("/callback")
-async def handle_callback(request: Request):
+@app.route("/callback", methods=['POST'])
+def callback():
+    # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
 
     # get request body as text
-    body = await request.body()
-    body = body.decode()
+    body = request.get_data(as_text=True)
+    app.logger.info("Request body: " + body)
 
+    # handle webhook body
     try:
-        events = parser.parse(body, signature)
+        handler.handle(body, signature)
     except InvalidSignatureError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        abort(400)
 
-    for event in events:
-        if not isinstance(event, MessageEvent):
-            continue
-        if not isinstance(event.message, TextMessageContent):
-            continue
+    return 'OK'
 
-        await line_bot_api.reply_message(
+
+@handler.add(MessageEvent, message=TextMessageContent)
+def message_text(event):
+    with ApiClient(configuration) as api_client:
+        line_bot_api = MessagingApi(api_client)
+        line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
                 messages=[TextMessage(text=f"you just typed {event.message.text}")]
             )
         )
 
-    return 'OK'
+
+if __name__ == "__main__":
+    arg_parser = ArgumentParser(
+        usage='Usage: python ' + __file__ + ' [--port <port>] [--help]'
+    )
+    arg_parser.add_argument('-p', '--port', default=8000, help='port')
+    arg_parser.add_argument('-d', '--debug', default=False, help='debug')
+    options = arg_parser.parse_args()
+
+    app.run(debug=options.debug, port=options.port)

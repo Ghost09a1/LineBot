@@ -1,4 +1,2 @@
 line-bot-sdk
-fastapi
-urllib3==1.26.6
-uvicorn[standard]
+flask

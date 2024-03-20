@@ -1,81 +1,92 @@
-import os
-import sys
-from argparse import ArgumentParser
-
-from flask import Flask, request, abort
-from linebot.v3 import (
-     WebhookHandler
-)
-from linebot.v3.exceptions import (
-    InvalidSignatureError
-)
-from linebot.v3.webhooks import (
-    MessageEvent,
-    TextMessageContent,
-)
-from linebot.v3.messaging import (
-    Configuration,
-    ApiClient,
-    MessagingApi,
-    ReplyMessageRequest,
-    TextMessage
-)
-
-app = Flask(__name__)
-
-# get channel_secret and channel_access_token from your environment variable
-channel_secret = os.getenv('2bfb32b405764eb9c73ee8e3ccae43b2', None)
-channel_access_token = os.getenv('trcrGS6lRXZ4+giOYBkTJaGkycZgibtAeLR14XzP3eT1nJmdxhBKudD7E5exTnMEp7CMLPmh2cYc3MWlJq/DS3JW9hcP8WbofO+9M6CHuN5iZ/A68G1PEsgEOA6kdyDfnRhWOZLID8sC38GB996QPgdB04t89/1O/w1cDnyilFU=', None)
-if channel_secret is None:
-    print('Specify LINE_CHANNEL_SECRET as environment variable.')
-    sys.exit(1)
-if channel_access_token is None:
-    print('Specify LINE_CHANNEL_ACCESS_TOKEN as environment variable.')
-    sys.exit(1)
-
-handler = WebhookHandler(channel_secret)
-
-configuration = Configuration(
-    access_token=channel_access_token
-)
+from typing import Final
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackContext  
+from datetime import datetime
 
 
-@app.route("/callback", methods=['POST'])
-def callback():
-    # get X-Line-Signature header value
-    signature = request.headers['X-Line-Signature']
+print("Lama loading...")
 
-    # get request body as text
-    body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
-
-    # handle webhook body
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
-
-    return 'OK'
+# Retrieve the token from environment variables
+TOKEN: Final ="7067874373:AAGZhFjc0OT2DnWJnV0ZoU-gAnF33aLuuB8"
+BOT_USERNAME: Final = '@Lamageek_bot'
 
 
-@handler.add(MessageEvent, message=TextMessageContent)
-def message_text(event):
-    with ApiClient(configuration) as api_client:
-        line_bot_api = MessagingApi(api_client)
-        line_bot_api.reply_message_with_http_info(
-            ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[TextMessage(text=f"you just typed {event.message.text}")]
-            )
-        )
+# Commands
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('I am a magic Lama!')
+                                    
+                                                             
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('I am an helping Lama!')
+                                    
 
+async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('I am a hungry Lama!')
+
+
+# Responses
+
+def handle_response(text: str) -> str:
+    processed: str = text.lower()
+
+    if 'hello' in processed:
+        return 'Hey! How are you?'
+    
+    if 'who are you' in processed:
+        return 'I am a magical Lama and I am here to help you.'
+    
+    if 'i love lamas' in processed:
+        return 'I love you too!'
+    
+    return 'i do not understand you!'
+
+# async def handle_message(update: Update, context: CallbackContext):
+#     message_type = update.message.chat.type
+#     text = update.message.text
+
+#     print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
+
+#     response = handle_response(text)
+
+#     print('Lama:', response)
+#     await update.message.reply_text(response)
+
+
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message_type: str = update.message.chat.type
+    text: str = update.message.text
+
+    print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
+
+    response: str = handle_response(text)
+
+    print('Lama', response)
+    await update.message.reply_text(response)
+
+# loging errors
+
+async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f'Update {update} caused error {context.error}')
 
 if __name__ == "__main__":
-    arg_parser = ArgumentParser(
-        usage='Usage: python ' + __file__ + ' [--port <port>] [--help]'
-    )
-    arg_parser.add_argument('-p', '--port', default=8000, help='port')
-    arg_parser.add_argument('-d', '--debug', default=False, help='debug')
-    options = arg_parser.parse_args()
+    print('Materializing Lama!')
+    app = Application.builder().token(TOKEN).build()
 
-    app.run(debug=options.debug, port=options.port)
+
+    #commands
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("custom", custom_command))
+
+    #messages
+    app.add_handler(MessageHandler(filters.Text, handle_message))
+
+    #errors
+    app.add_error_handler(error)
+
+    #Polling 
+    print('Lama is polling...')
+    app.run_polling(poll_interval=3)
+

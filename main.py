@@ -81,12 +81,12 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("custom", custom_command))
 
     #messages
-    app.add_handler(MessageHandler(filters.Text, handle_message))
+    app.add_handler(MessageHandler(filters.Text(), handle_message))
 
     #errors
     app.add_error_handler(error)
 
     #Polling 
     print('Lama is polling...')
-    app.run_polling(poll_interval=3)
+    app.run_polling(poll_interval=0.5)
 

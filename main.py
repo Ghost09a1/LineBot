@@ -50,6 +50,68 @@ def get_facts(limit=1):
         return response.json()[0]['fact']
 
 
+# Spotify API Logic
+
+def search_random_song():
+    # Spotify API endpoint for searching tracks
+    endpoint = "https://api.spotify.com/v1/search"
+
+    # Parameters for the search query
+    params = {
+        "q": "track:*",  # Search for any track
+        "type": "track",
+        "limit": 50,  # Limit the number of results
+    }
+
+    # Authorization header
+    headers = {
+        "Authorization": f"Bearer {get_access_token()}"  # Get access token from Spotify API
+    }
+
+    # Make a GET request to the Spotify API
+    response = requests.get(endpoint, params=params, headers=headers)
+
+    # Parse the response and extract a random song
+    if response.status_code == 200:
+        data = response.json()
+        tracks = data["tracks"]["items"]
+        random_track = random.choice(tracks)
+        return random_track
+    else:
+        return None
+
+def get_access_token():
+    # Spotify API endpoint for getting an access token
+    token_url = "https://accounts.spotify.com/api/token"
+
+    # Base64 encode the client ID and client secret
+    client_credentials = f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_Secret}"
+    encoded_credentials = base64.b64encode(client_credentials.encode()).decode()
+
+    # Headers for the token request
+    headers = {
+        "Authorization": f"Basic {encoded_credentials}",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    # Data for the token request
+    data = {
+        "grant_type": "client_credentials"
+    }
+
+    # Make a POST request to get the access token
+    response = requests.post(token_url, headers=headers, data=data)
+
+    # Parse the response and extract the access token
+    if response.status_code == 200:
+        token_data = response.json()
+        access_token = token_data["access_token"]
+        return access_token
+    else:
+        return None
+
+
+
 # Youtube API Logic
 
 
@@ -104,11 +166,29 @@ async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("I am a hungry Lama!")
 
 
-# API Command
+# Spotify API Command
 
 
-async def spotify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("reply Api outPUT")
+# async def spotify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+   # await update.message.reply_text("reply Api outPUT")
+
+   # Spotify API Command
+
+async def spotify_command(update: Update, context: CallbackContext):
+    # Search for a random song
+    random_track = search_random_song()
+
+    if random_track:
+        # Extract song information
+        song_name = random_track["name"]
+        artist_name = random_track["artists"][0]["name"]
+        song_url = random_track["external_urls"]["spotify"]
+
+        # Reply to the user with the song information
+        await update.message.reply_text(f"Here's a random song for you: {song_name} by {artist_name}\n{song_url}")
+    else:
+        # Reply if no song found
+        await update.message.reply_text("Sorry, couldn't find a random song at the moment.")
 
 
 # Responses
